@@ -15,6 +15,7 @@ impl std::ops::Deref for PauliOperator {
 
 impl Display for PauliOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", if self.sign {"-"} else {"+"})?;
         for i in self.ops.iter() {
             write!(f, "{}", i)?;
         }
