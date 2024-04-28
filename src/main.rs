@@ -11,14 +11,10 @@ fn main() -> R<()> {
     color_eyre::install()?;
     
     // Get n from the command line
-    let n: u64 = args().nth(1).ok_or_eyre("Argument missing: number of qubits.")?.parse()?;
+    let n: usize = args().nth(1).ok_or_eyre("Argument missing: number of qubits.")?.parse()?;
+
+    let (a, b) = PauliOperator::gen_anticommuting_pair(n);
+    println!("{}\n{}", a, b);
 
     Ok(())
-}
-
-fn sample_anticommuting_pauli_operator(n: u64) {
-    assert!(n % 2 == 0 && n >= 2);
-    loop {
-
-    }
 }
