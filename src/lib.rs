@@ -32,16 +32,16 @@ impl Pauli {
         }
     }
     // CX(a, b)
-    pub fn cnot(&self, other: &Self) -> (Self, Self) {
+    pub fn cnot(&self, target: &Self) -> (Self, Self) {
         // a=self, b=other
         (
             Self {
-                z: self.z ^ other.z,
+                z: self.z ^ target.z,
                 x: self.x,
             },
             Self {
-                x: self.x ^ other.x,
-                z: other.z,
+                x: self.x ^ target.x,
+                z: target.z,
             },
         )
     }
@@ -57,7 +57,7 @@ mod pauli_trait_impls;
 pub enum Gate {
     Hadamard(usize),
     Phase(usize),
-    CNot(usize, usize)
+    CNot(usize, usize),
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -69,19 +69,19 @@ pub struct PauliOperator {
 impl PauliOperator {
     /// Apply the hadamard gate to a single bit.
     pub fn hadamard(&mut self, a: usize) {
-        self.sign ^= self.ops[a] == Y;
-        self.ops[a] = self.ops[a].hadamard();
+        self.sign ^= self[a] == Y;
+        self[a] = self[a].hadamard();
     }
     /// Apply the phase gate to a single bit
     pub fn phase(&mut self, a: usize) {
-        self.sign ^= self.ops[a] == Y;
-        self.ops[a] = self.ops[a].phase();
+        self.sign ^= self[a] == Y;
+        self[a] = self[a].phase();
     }
-    /// Apply the CX gate to two bits
+    /// Apply the CX gate to two bits, a is control, b is target
     pub fn cnot(&mut self, a: usize, b: usize) {
-        let ((xa, za), (xb, zb)) = (self.ops[a].into(), self.ops[b].into());
+        let ((xa, za), (xb, zb)) = (self[a].into(), self[b].into());
         self.sign ^= xa && zb && (xb ^ za ^ true);
-        (self.ops[a], self.ops[b]) = Pauli::cnot(&self.ops[a], &self.ops[b]);
+        (self[a], self[b]) = Pauli::cnot(&self[a], &self[b]);
     }
     /// Apply a certain gate
     pub fn apply(&mut self, gate: &Gate) {
@@ -95,10 +95,10 @@ impl PauliOperator {
     /// and false if they anticommute (e.g. PQ = -QP)
     pub fn commutes(&self, other: &Self) -> bool {
         let mut total = 0;
-        assert_eq!(self.ops.len(), other.ops.len());
-        for i in 0..self.ops.len() {
+        assert_eq!(self.len(), other.len());
+        for i in 0..self.len() {
             // two paulis anticommute iff they're different and neither is the identity
-            if self.ops[i] != other.ops[i] && self.ops[i] != I && other.ops[i] != I {
+            if self[i] != other[i] && self[i] != I && other[i] != I {
                 total += 1;
             }
         }
@@ -110,7 +110,7 @@ impl PauliOperator {
         // just keep generating random paulis until they anticommute
         loop {
             let a = Self::gen_random(n);
-            if a.ops.iter().all(|x| x == &I) {
+            if a.iter().all(|x| x == &I) {
                 // make sure the first isn't the identity
                 continue;
             }
@@ -128,18 +128,18 @@ impl PauliOperator {
             //? Is the sign just a random variable? Or is it a function of the paulis
             //? in the operator? I think it's random because paper 2 specifies
             //? +IZ and +ZI instead of just labeling them IZ and ZI, implying that
-            //? there could in theory be a -IZ and -ZI, and they're stored as a 
+            //? there could in theory be a -IZ and -ZI, and they're stored as a
             //? separate column in the matrix, but I can't find anywhere that's
             //? explicitly laid out. Working under this assumption for now.
             sign: fastrand::bool(),
         }
     }
     /// Pad this to the left with the identity, e.g. XZYI.left_pad(5) -> IXZYI
-    /// 
-    /// Does nothing if `new_size <= self.ops.len()`
+    ///
+    /// Does nothing if `new_size <= self.len()`
     pub fn left_pad(&mut self, new_size: usize) {
-        while self.ops.len() > new_size {
-            self.ops.insert(0, I);
+        while self.len() > new_size {
+            self.insert(0, I);
         }
     }
     /// Sweeps a pair of tableaus to the +XIIII... and +ZIIII... states and returns
@@ -150,17 +150,23 @@ impl PauliOperator {
         let (a, b) = (self, other); // give them more convenient names
         assert_eq!(a.len(), b.len());
 
-        // Step 1: Clear all of the a_z bits using H and S
+        // Step 1: Clear all of the z_a bits using H and S
         for i in 0..a.len() {
-            // For all positions where a_z is 1, apply S if a_x = 1, else H
-            if a.ops[i].z {
-                let gate = if a.ops[i].x {Phase(i)} else {Hadamard(i)};
+            // For all positions where z_a is 1, apply S if x_a = 1, else H
+            if a[i].z {
+                let gate = if a[i].x { Phase(i) } else { Hadamard(i) };
                 a.apply(&gate);
                 b.apply(&gate);
                 circuit.push(gate);
                 println!("---\n{}\n{}", a, b); //debug
             }
         }
+
+        // Step 2: Clear all but one x_a bits using CNOT gates
+        loop {
+            let j = (0..a.len()).filter(|i| a[*i].x); // get list of indices for which a_x
+        }
+
         circuit
     }
 }
@@ -170,7 +176,7 @@ mod pauli_operator_trait_impls;
 type Circuit = Vec<Gate>;
 pub struct Clifford {
     circuit: Circuit,
-    tableau: Vec<PauliOperator> // POs yet to be determined just aren't placed in the array 
-    // The size is implicit, it is the size of the first PO in the the tableau.
-    // Sizes of later elements may be smaller.
+    tableau: Vec<PauliOperator>, // POs yet to be determined just aren't placed in the array
+                                 // The size is implicit, it is the size of the first PO in the the tableau.
+                                 // Sizes of later elements may be smaller.
 }

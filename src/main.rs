@@ -14,14 +14,8 @@ fn main() -> R<()> {
     let n: usize = args().nth(1).ok_or_eyre("Argument missing: number of qubits.")?.parse()?;
 
     // let (mut a, mut b) = PauliOperator::gen_anticommuting_pair(n);
-    let mut a = PauliOperator {
-        sign: true,
-        ops: vec![X, Y, Y, X]
-    };
-    let mut b = PauliOperator {
-        sign: true,
-        ops: vec![Y, Y, Y, X]
-    };
+    let mut a = "+XYYX".try_into()?;
+    let mut b = "+YYYX".try_into()?;
     println!("{}\n{}", a, b);
     dbg!(PauliOperator::sweep(&mut a, &mut b));
 
