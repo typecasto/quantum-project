@@ -25,14 +25,14 @@ impl Pauli {
         }
     }
     /// S(a)
-    pub fn phase_gate(&self) -> Self {
+    pub fn phase(&self) -> Self {
         Self {
             x: self.x,
             z: self.x ^ self.z,
         }
     }
     // CX(a, b)
-    pub fn cx_gate(&self, other: &Self) -> (Self, Self) {
+    pub fn cnot(&self, other: &Self) -> (Self, Self) {
         // a=self, b=other
         (
             Self {
@@ -50,49 +50,13 @@ impl Pauli {
     }
 }
 
-impl Display for Pauli {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self.clone().into() {
-                (false, false) => "I",
-                (false, true) => "Z",
-                (true, false) => "X",
-                (true, true) => "Y",
-            }
-        )
-    }
-}
-
-impl From<(bool, bool)> for Pauli {
-    fn from(value: (bool, bool)) -> Self {
-        Self {
-            x: value.0,
-            z: value.1,
-        }
-    }
-}
-
-impl From<Pauli> for (bool, bool) {
-    fn from(value: Pauli) -> Self {
-        (value.x, value.z)
-    }
-}
+// extract these to their own files, they're just fluff
+mod pauli_trait_impls;
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct PauliOperator {
     pub ops: Vec<Pauli>,
     pub s: bool,
-}
-
-// make it so we can basically treat this as a Vec<Pauli> and everything will Just Work:tm:
-impl std::ops::Deref for PauliOperator {
-    type Target = Vec<Pauli>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.ops
-    }
 }
 
 impl PauliOperator {
@@ -101,12 +65,12 @@ impl PauliOperator {
         self.ops[a] = self.ops[a].hadamard();
     }
     /// Apply the phase gate to a single bit
-    pub fn phase_gate(&mut self, a: usize) {
-        self.ops[a] = self.ops[a].phase_gate();
+    pub fn phase(&mut self, a: usize) {
+        self.ops[a] = self.ops[a].phase();
     }
     /// Apply the CX gate to two bits
-    pub fn cx_gate(&mut self, a: usize, b: usize) {
-        (self.ops[a], self.ops[b]) = Pauli::cx_gate(&self.ops[a], &self.ops[b]);
+    pub fn cnot(&mut self, a: usize, b: usize) {
+        (self.ops[a], self.ops[b]) = Pauli::cnot(&self.ops[a], &self.ops[b]);
     }
     /// Returns true if this operator commutes with the other (e.g. PQ = QP)
     /// and false if they anticommute (e.g. PQ = -QP)
@@ -144,23 +108,10 @@ impl PauliOperator {
     }
 }
 
-impl Display for PauliOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for i in self.ops.iter() {
-            if i.x {
-                write!(f, "X ")?;
-            } else {
-                write!(f, "_ ")?;
-            }
-        }
-        write!(f, "| ")?;
-        for i in self.ops.iter() {
-            if i.z {
-                write!(f, "Z ")?;
-            } else {
-                write!(f, "_ ")?;
-            }
-        }
-        Ok(())
-    }
+mod pauli_operator_trait_impls;
+
+pub enum Gate {
+    Hadamard(usize),
+    Phase(usize),
+    CNot(usize, usize)
 }
