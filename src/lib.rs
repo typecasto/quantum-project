@@ -1,5 +1,10 @@
 #![allow(unused, dead_code)]
 
+//! Code in this repository is heavily based on the paper:
+//! "A simple method for sampling random Clifford operators"
+//! by Ewout van den Berg
+//! published in 2021 
+
 use color_eyre::Result as R;
 use std::fmt::Display;
 use std::iter::repeat_with;
