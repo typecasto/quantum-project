@@ -16,8 +16,12 @@ fn main() -> R<()> {
     // let (mut a, mut b) = PauliOperator::gen_anticommuting_pair(n);
     let mut a = "+XYYX".try_into()?;
     let mut b = "+YYYX".try_into()?;
-    println!("{}\n{}", a, b);
-    dbg!(PauliOperator::sweep(&mut a, &mut b));
+    // let mut a = "+IZI".try_into()?;
+    // let mut b = "+YYI".try_into()?;
+    println!("{}\n{}\n", a, b);
+    for gate in PauliOperator::sweep(&mut a, &mut b).iter() {
+        println!("{}", gate)
+    }
 
     Ok(())
 }

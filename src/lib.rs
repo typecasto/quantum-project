@@ -58,6 +58,18 @@ pub enum Gate {
     Hadamard(usize),
     Phase(usize),
     CNot(usize, usize),
+    Swap(usize, usize),
+}
+
+impl Display for Gate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Gate::Hadamard(a) => write!(f, "Hadamard({})", a),
+            Gate::Phase(a) => write!(f, "Phase({})", a),
+            Gate::CNot(a, b) => write!(f, "CNot({}, {})", a, b),
+            Gate::Swap(a, b) => write!(f, "Swap({}, {})", a, b),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -89,6 +101,15 @@ impl PauliOperator {
             Gate::Hadamard(a) => self.hadamard(*a),
             Gate::Phase(a) => self.phase(*a),
             Gate::CNot(a, b) => self.cnot(*a, *b),
+            Gate::Swap(a, b) => {
+                //? I'm pretty sure that 3 CNOTs will maintain the sign bit,
+                //? so this could just be replaced with `self.swap(*a, *b)`, but
+                //? I'm not sure how to rigerously prove that, so I'm just leaving
+                //? it as 3 CNOTs just on the off chance my intiution is wrong.
+                self.cnot(*a, *b);
+                self.cnot(*b, *a);
+                self.cnot(*a, *b);
+            }
         }
     }
     /// Returns true if this operator commutes with the other (e.g. PQ = QP)
@@ -151,6 +172,7 @@ impl PauliOperator {
         assert_eq!(a.len(), b.len());
 
         // Step 1: Clear all of the z_a bits using H and S
+        println!("--- Step 1 ---");
         for i in 0..a.len() {
             // For all positions where z_a is 1, apply S if x_a = 1, else H
             if a[i].z {
@@ -158,15 +180,93 @@ impl PauliOperator {
                 a.apply(&gate);
                 b.apply(&gate);
                 circuit.push(gate);
-                println!("---\n{}\n{}", a, b); //debug
+                println!("{}\n{}\n", a, b); //debug
             }
         }
 
         // Step 2: Clear all but one x_a bits using CNOT gates
-        loop {
-            let j = (0..a.len()).filter(|i| a[*i].x); // get list of indices for which a_x
+        println!("--- Step 2 ---");
+        let first_position = loop {
+            // get list of indices for which a_x is 1
+            let j: Vec<_> = (0..a.len()).filter(|i| a[*i].x).collect();
+            assert_ne!(j.len(), 0);
+            if j.len() == 1 {
+                break j[0];
+            }
+            for chunk in j.chunks_exact(2) {
+                let [c, t] = chunk else {
+                    unreachable!("chunks_exact is guaranteed to return 2-chunks")
+                };
+                let gate = CNot(*c, *t);
+                a.apply(&gate);
+                b.apply(&gate);
+                circuit.push(gate);
+            }
+            println!("{}\n{}\n", a, b); //debug
+        };
+
+        // Step 3: Move the x_a bit into the first position
+        if first_position != 0 {
+            println!("--- Step 3 ---");
+            let gate = Swap(0, first_position);
+            a.apply(&gate);
+            b.apply(&gate);
+            circuit.push(gate);
+            println!("{}\n{}\n", a, b); //debug
         }
 
+        // Step 4: Clear out the 2nd row by repeating steps 1 and 2 (steps 4b and 4c)
+        if !(b[0] == Z && b[1..].iter().all(|p| p == &I)) {
+            // if b != +/-ZIII...
+
+            println!("--- Step 4a ---");
+            let gate = Hadamard(0);
+            a.apply(&gate);
+            b.apply(&gate);
+            circuit.push(gate);
+            println!("{}\n{}\n", a, b); //debug
+
+            // Step 4a: Repeat step 1 on the 2nd row
+            println!("--- Step 4a ---");
+            for i in 0..a.len() {
+                // For all positions where z_b is 1, apply S if x_b = 1, else H
+                if b[i].z {
+                    let gate = if b[i].x { Phase(i) } else { Hadamard(i) };
+                    a.apply(&gate);
+                    b.apply(&gate);
+                    circuit.push(gate);
+                    println!("{}\n{}\n", a, b); //debug
+                }
+            }
+
+            // Step 4b: Repeat step 2 on the 2nd row
+            println!("--- Step 4b ---");
+            let first_position = loop {
+                // get list of indices for which b_x is 1
+                let j: Vec<_> = (0..b.len()).filter(|i| b[*i].x).collect();
+                assert_ne!(j.len(), 0);
+                if j.len() == 1 {
+                    break j[0];
+                }
+                for chunk in j.chunks_exact(2) {
+                    let [c, t] = chunk else {
+                        unreachable!("chunks_exact is guaranteed to return 2-chunks")
+                    };
+                    let gate = CNot(*c, *t);
+                    a.apply(&gate);
+                    b.apply(&gate);
+                    circuit.push(gate);
+                }
+                println!("{}\n{}\n", a, b); //debug
+            };
+            // Step 4d
+            println!("--- Step 4d ---");
+            let gate = Hadamard(0);
+            a.apply(&gate);
+            b.apply(&gate);
+            circuit.push(gate);
+            println!("{}\n{}\n", a, b); //debug
+        }
         circuit
     }
 }
