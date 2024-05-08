@@ -4,6 +4,7 @@ use color_eyre::Result as R;
 use std::fmt::Display;
 use std::iter::repeat_with;
 use std::num::NonZeroU64;
+use std::ops::Add;
 
 pub const I: Pauli = Pauli { x: false, z: false };
 pub const Z: Pauli = Pauli { x: false, z: true };
@@ -68,6 +69,19 @@ impl Display for Gate {
             Gate::Phase(a) => write!(f, "Phase({})", a),
             Gate::CNot(a, b) => write!(f, "CNot({}, {})", a, b),
             Gate::Swap(a, b) => write!(f, "Swap({}, {})", a, b),
+        }
+    }
+}
+
+impl Add<usize> for Gate {
+    type Output = Gate;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        match self {
+            Gate::Hadamard(a) => Gate::Hadamard(a + rhs),
+            Gate::Phase(a) => Gate::Phase(a + rhs),
+            Gate::CNot(a, b) => Gate::CNot(a + rhs, b + rhs),
+            Gate::Swap(a, b) => Gate::Swap(a + rhs, b + rhs),
         }
     }
 }
@@ -275,8 +289,40 @@ mod pauli_operator_trait_impls;
 
 type Circuit = Vec<Gate>;
 pub struct Clifford {
-    circuit: Circuit,
-    tableau: Vec<PauliOperator>, // POs yet to be determined just aren't placed in the array
-                                 // The size is implicit, it is the size of the first PO in the the tableau.
-                                 // Sizes of later elements may be smaller.
+    pub circuit: Circuit,
+    pub tableau: Vec<PauliOperator>, // POs yet to be determined just aren't placed in the array
+                                     // The size is implicit, it is the size of the first PO in the the tableau.
+                                     // Sizes of later elements may be smaller.
+}
+
+impl Clifford {
+    /// Generate a random clifford operator and give you its circuit
+    pub fn gen_circuit(n: usize) -> Self {
+        let mut tableau = Vec::new();
+        for i in (1..=n).rev() {
+            let (a, b) = PauliOperator::gen_anticommuting_pair(i);
+            tableau.push(a);
+            tableau.push(b);
+        }
+        let mut s = Self {
+            circuit: Circuit::new(),
+            tableau,
+        };
+        s.sweep();
+        return s;
+    }
+
+    pub fn sweep(&mut self) {
+        let mut n = self.tableau[0].len();
+        let mut i = 0;
+        while n > 0 {
+            let [a, b] = self.tableau.get_mut(i..=i+1).unwrap() else {unreachable!()};
+            let gates = PauliOperator::sweep(a, b);
+            // shift the gates so they line up with the circuit (and start at 1, not 0)
+            self.circuit
+                .extend(gates.iter().map(|g| *g + i / 2 + 1usize));
+            i += 2;
+            n -= 1;
+        }
+    }
 }
