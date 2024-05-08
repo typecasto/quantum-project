@@ -186,7 +186,7 @@ impl PauliOperator {
         assert_eq!(a.len(), b.len());
 
         // Step 1: Clear all of the z_a bits using H and S
-        println!("--- Step 1 ---");
+        //println!("--- Step 1 ---");
         for i in 0..a.len() {
             // For all positions where z_a is 1, apply S if x_a = 1, else H
             if a[i].z {
@@ -194,12 +194,11 @@ impl PauliOperator {
                 a.apply(&gate);
                 b.apply(&gate);
                 circuit.push(gate);
-                println!("{}\n{}\n", a, b); //debug
             }
         }
 
         // Step 2: Clear all but one x_a bits using CNOT gates
-        println!("--- Step 2 ---");
+        //println!("--- Step 2 ---");
         let first_position = loop {
             // get list of indices for which a_x is 1
             let j: Vec<_> = (0..a.len()).filter(|i| a[*i].x).collect();
@@ -216,32 +215,29 @@ impl PauliOperator {
                 b.apply(&gate);
                 circuit.push(gate);
             }
-            println!("{}\n{}\n", a, b); //debug
         };
 
         // Step 3: Move the x_a bit into the first position
         if first_position != 0 {
-            println!("--- Step 3 ---");
+            //println!("--- Step 3 ---");
             let gate = Swap(0, first_position);
             a.apply(&gate);
             b.apply(&gate);
             circuit.push(gate);
-            println!("{}\n{}\n", a, b); //debug
         }
 
         // Step 4: Clear out the 2nd row by repeating steps 1 and 2 (steps 4b and 4c)
         if !(b[0] == Z && b[1..].iter().all(|p| p == &I)) {
             // if b != +/-ZIII...
 
-            println!("--- Step 4a ---");
+            //println!("--- Step 4a ---");
             let gate = Hadamard(0);
             a.apply(&gate);
             b.apply(&gate);
             circuit.push(gate);
-            println!("{}\n{}\n", a, b); //debug
 
             // Step 4a: Repeat step 1 on the 2nd row
-            println!("--- Step 4a ---");
+            //println!("--- Step 4a ---");
             for i in 0..a.len() {
                 // For all positions where z_b is 1, apply S if x_b = 1, else H
                 if b[i].z {
@@ -249,12 +245,11 @@ impl PauliOperator {
                     a.apply(&gate);
                     b.apply(&gate);
                     circuit.push(gate);
-                    println!("{}\n{}\n", a, b); //debug
                 }
             }
 
             // Step 4b: Repeat step 2 on the 2nd row
-            println!("--- Step 4b ---");
+            //println!("--- Step 4b ---");
             let first_position = loop {
                 // get list of indices for which b_x is 1
                 let j: Vec<_> = (0..b.len()).filter(|i| b[*i].x).collect();
@@ -271,15 +266,13 @@ impl PauliOperator {
                     b.apply(&gate);
                     circuit.push(gate);
                 }
-                println!("{}\n{}\n", a, b); //debug
             };
             // Step 4d
-            println!("--- Step 4d ---");
+            //println!("--- Step 4d ---");
             let gate = Hadamard(0);
             a.apply(&gate);
             b.apply(&gate);
             circuit.push(gate);
-            println!("{}\n{}\n", a, b); //debug
         }
         circuit
     }
@@ -316,7 +309,9 @@ impl Clifford {
         let mut n = self.tableau[0].len();
         let mut i = 0;
         while n > 0 {
-            let [a, b] = self.tableau.get_mut(i..=i+1).unwrap() else {unreachable!()};
+            let [a, b] = self.tableau.get_mut(i..=i + 1).unwrap() else {
+                unreachable!()
+            };
             let gates = PauliOperator::sweep(a, b);
             // shift the gates so they line up with the circuit (and start at 1, not 0)
             self.circuit

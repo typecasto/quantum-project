@@ -25,7 +25,7 @@ impl std::ops::DerefMut for PauliOperator {
 
 impl Display for PauliOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", if self.sign {"-"} else {"+"})?;
+        write!(f, "{}", if self.sign { "-" } else { "+" })?;
         for i in self.ops.iter() {
             write!(f, "{}", i)?;
         }
@@ -68,9 +68,8 @@ impl TryFrom<&str> for PauliOperator {
                 'Y' => Y,
                 'Z' => Z,
                 _ => return Err(Report::msg("Paulis can be only 'I', 'X', 'Y', and 'Z'.")),
-                
             });
-        };
-        Ok(Self {ops, sign})
+        }
+        Ok(Self { ops, sign })
     }
 }
