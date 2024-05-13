@@ -17,7 +17,7 @@ fn main() -> R<()> {
         .parse()?;
     let circuit = if n == 0 {
         // if it equals zero, give the circuit from the paper
-        eprintln!("Given size 0, recreating the circuit from figure 5 instead.")
+        eprintln!("Given size 0, recreating the circuit from figure 5 instead.");
         let mut c = Clifford {
             circuit: vec![],
             tableau: ["+XYYX", "+YYYX", "+IZI", "+YYI", "+IX", "+IZ", "+Z", "+X"]
